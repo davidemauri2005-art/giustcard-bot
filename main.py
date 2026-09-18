@@ -1,59 +1,53 @@
 import os
 import logging
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, ContextTypes
 
-# Configurazione log
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
-# Prendi il token da Render
+logging.basicConfig(level=logging.INFO)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN non trovato! Mettilo nelle Environment Variables di Render")
+
+FILE_CARTA = "ultima_carta.txt"
+
+def salva_carta(nome):
+    with open(FILE_CARTA, "w", encoding="utf-8") as f:
+        f.write(nome)
+
+def leggi_carta():
+    try:
+        with open(FILE_CARTA, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except:
+        return None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Ciao! 👋 Sono GiustCardBot\n\n"
-        "Inviami una foto di una carta e ti dico:\n"
-        "✅ Nome carta\n"
-        "✅ Condizione stimata\n"
-        "✅ Valore di mercato\n\n"
-        "Invia pure la foto!"
-    )
-
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Foto ricevuta! La sto analizzando... 🔍")
-    
-    # QUI VA LA TUA LOGICA DI VALUTAZIONE
-    # Per ora risposta di test
-    try:
-        # Esempio: qui dovresti chiamare il tuo modello AI
-        # photo_file = await update.message.photo[-1].get_file()
-        # await photo_file.download_to_drive("card.jpg")
-        
+    carta = leggi_carta()
+    if carta:
         await update.message.reply_text(
-            "Analisi completata!\n\n"
-            "Carta: Esempio - Charizard\n"
-            "Condizione: Near Mint\n"
-            "Valore stimato: 50-70€\n\n"
-            "(Questa è una risposta di test, collega la tua AI qui)"
+            f"Guarda hai ordinato la carta di {carta} ieri, "
+            f"oggi è arrivata e nel magazzino hai solo quella."
         )
-    except Exception as e:
-        logger.error(f"Errore: {e}")
-        await update.message.reply_text(f"Errore durante l'analisi: {e}")
+    else:
+        await update.message.reply_text(
+            "Ciao! Al momento nessuna carta nuova arrivata in magazzino."
+        )
+
+async def arrivata(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("Usa così: /arrivata Paperino")
+        return
+    nome_carta = " ".join(context.args)
+    salva_carta(nome_carta)
+    await update.message.reply_text(f"Fatto! ✅ Impostata come arrivata: {nome_carta}")
 
 def main():
-    application = Application.builder().token(BOT_TOKEN).build()
-
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-
-    logger.info("Bot avviato...")
-    application.run_polling(drop_pending_updates=True)
+    app = Application.builder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("arrivata", arrivata))
+    # per compatibilità se il cliente scrive /saldo o /prezzo
+    app.add_handler(CommandHandler("saldo", start))
+    app.add_handler(CommandHandler("prezzo", start))
+    print("Bot avviato...")
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()
