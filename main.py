@@ -56,4 +56,4 @@ if __name__ == "__main__":
     application.add_handler(CommandHandler("saldo", saldo))
     application.add_handler(CommandHandler("prezzo", prezzo))
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    application.run_polling()
+        application.run_polling(drop_pending_updates=True)
